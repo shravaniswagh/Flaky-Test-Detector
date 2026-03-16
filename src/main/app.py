@@ -23,12 +23,11 @@ import uuid
 from flask import Flask, jsonify, request, render_template, abort
 from flask_cors import CORS
 from pathlib import Path
-
-from flaky_detector import FlakyDetector
-from test_analyzer import TestAnalyzer
-from junit_parser import JUnitParser, aggregate_junit_results
-from notifications import WebhookNotifier, send_test_notification
-from database import (
+from src.main.flaky_detector import FlakyDetector
+from src.main.test_analyzer import TestAnalyzer
+from src.main.junit_parser import JUnitParser, aggregate_junit_results
+from src.main.notifications import WebhookNotifier, send_test_notification
+from src.main.database import (
     init_db, get_all_results, get_all_suggestions, upsert_result,
     get_existing_flaky_names, record_run_history,
     get_test_history, get_trend_data, get_trend_summary,
