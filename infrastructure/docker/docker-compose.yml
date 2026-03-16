@@ -1,0 +1,34 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# docker-compose.yml — Flaky Test Maintenance Tool
+# Usage:   docker compose -f infrastructure/docker/docker-compose.yml up --build
+# Dashboard: http://localhost:5000
+# ─────────────────────────────────────────────────────────────────────────────
+
+services:
+
+  app:
+    build:
+      context: ../../
+      dockerfile: infrastructure/docker/Dockerfile
+    container_name: flakyscan_app
+    restart: unless-stopped
+    ports:
+      - "5000:8080"
+    environment:
+      FLASK_ENV: production
+      FLASK_HOST: "0.0.0.0"
+      FLASK_PORT: "8080"
+      PYTHONPATH: /app/src/main
+      FLAKYSCAN_DB_PATH: /app/data/flakyscan.db
+    volumes:
+      - flakyscan_data:/app/data
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8080/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 20s
+
+volumes:
+  flakyscan_data:
+    driver: local

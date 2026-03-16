@@ -1,0 +1,11 @@
+<?xml version="1.0"?>
+<testsuite name="ci-pipeline" tests="4" failures="2">
+  <testcase classname="TestCheckout" name="test_payment_success" time="0.5"/>
+  <testcase classname="TestCheckout" name="test_payment_timeout" time="5.0">
+    <failure message="timeout">Payment gateway timed out after 5s</failure>
+  </testcase>
+  <testcase classname="TestAuth" name="test_login" time="0.3"/>
+  <testcase classname="TestAuth" name="test_session_expired" time="1.2">
+    <failure message="race condition">Session token expired mid-request</failure>
+  </testcase>
+</testsuite>
