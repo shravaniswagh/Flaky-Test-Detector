@@ -519,3 +519,29 @@ body {
 ::-webkit-scrollbar-track { background: var(--bg); }
 ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 99px; }
 ::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
+/* ─── Laboratory Animations ───────────────────────────────── */
+@keyframes pulseGlow {
+  0% { box-shadow: 0 0 0 0 rgba(88,166,255,0.4); }
+  70% { box-shadow: 0 0 0 10px rgba(88,166,255,0); }
+  100% { box-shadow: 0 0 0 0 rgba(88,166,255,0); }
+}
+
+#labExecuteBtn {
+  animation: pulseGlow 2s infinite;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+#labExecuteBtn:hover {
+  transform: translateY(-2px) scale(1.02);
+  filter: brightness(1.1);
+}
+
+.upload-area.drag-over .upload-icon {
+  transform: scale(1.2);
+  transition: transform 0.2s ease;
+}
+
+#labResult .status-banner {
+  border-left: 4px solid var(--accent2);
+  background: linear-gradient(90deg, rgba(63,185,80,0.1) 0%, transparent 100%);
+}

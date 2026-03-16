@@ -50,6 +50,7 @@
     <button class="tab-btn active" onclick="switchTab('dashboard')">Dashboard</button>
     <button class="tab-btn" onclick="switchTab('trends')">Trends</button>
     <button class="tab-btn" onclick="switchTab('ci-integration')">CI Integration</button>
+    <button class="tab-btn" onclick="switchTab('lab')">Test Laboratory</button>
     <button class="tab-btn" onclick="switchTab('webhooks')">Webhooks</button>
   </nav>
 
@@ -300,6 +301,42 @@ report_flaky:
           </tbody>
         </table>
       </div>
+    </section>
+
+  </div>
+
+  <!-- ════════════════════════════════════════════════════════════════ -->
+  <!-- TAB: Test Laboratory -->
+  <!-- ════════════════════════════════════════════════════════════════ -->
+  <div id="tab-lab" class="tab-content">
+
+    <section class="table-section">
+      <div class="table-header">
+        <h3 class="section-title">Upload & Execute Python Tests</h3>
+        <div class="table-controls">
+          <label for="labRuns" style="font-size: 0.85rem; color: var(--text-muted);">Iterations:</label>
+          <input type="number" id="labRuns" class="filter-select" value="3" min="1" max="10" style="width: 60px;" title="Number of runs for flaky detection" />
+        </div>
+      </div>
+      
+      <p style="color:var(--text-muted);font-size:.9rem;margin-bottom:1.5rem">
+        Upload a <code>.py</code> file containing your test cases. FlakyScan will execute them multiple times to detect inconsistent behavior and provide fix suggestions.
+      </p>
+
+      <div class="upload-area" id="labUploadArea">
+        <input type="file" id="labFile" accept=".py" style="display:none" onchange="handleLabFileSelection(this)" />
+        <div class="upload-icon">🐍</div>
+        <p>Drag &amp; drop a <strong>pytest</strong> file here, or <a href="#" onclick="document.getElementById('labFile').click();return false">browse</a></p>
+        <p style="font-size:.75rem;color:var(--text-muted)">Results will be persisted in your history</p>
+      </div>
+
+      <div id="labFilePreview" class="uploaded-files" style="display:none"></div>
+
+      <button id="labExecuteBtn" class="btn btn-primary" onclick="executeLabTest()" style="margin-top:1.5rem; display:none; width: 100%; justify-content: center;">
+        <span class="btn-icon">⚡</span> Execute &amp; Analyze
+      </button>
+
+      <div id="labResult" style="margin-top:1.5rem"></div>
     </section>
 
   </div>

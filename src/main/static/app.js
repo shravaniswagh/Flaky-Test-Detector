@@ -20,6 +20,7 @@ document.addEventListener('DOMContentLoaded', () => {
   fetchData();
   initCharts();
   initUploadArea();
+  initLabUploadArea();
 });
 
 // ─── Tab Navigation ───────────────────────────────────────────
@@ -509,6 +510,78 @@ async function testWebhookForm() {
   } catch (err) {
     showBanner('Webhook test failed: ' + err.message, 'error');
   }
+}
+
+// ─── Test Laboratory — Python Upload ───────────────────────────
+function handleLabFileSelection(input) {
+  const container = $id('labFilePreview');
+  const btn = $id('labExecuteBtn');
+  const files = input.files;
+
+  if (!files.length) {
+    container.style.display = 'none';
+    btn.style.display = 'none';
+    return;
+  }
+
+  container.style.display = 'block';
+  btn.style.display = 'inline-flex';
+  container.innerHTML = `<span class="file-chip">🐍 ${escHtml(files[0].name)} <small>(${(files[0].size/1024).toFixed(1)} KB)</small></span>`;
+}
+
+async function executeLabTest() {
+  const input = $id('labFile');
+  const runs = $id('labRuns').value || 3;
+  if (!input.files.length) { showBanner('No file selected.', 'error', 3000); return; }
+
+  const formData = new FormData();
+  formData.append('file', input.files[0]);
+  formData.append('runs', runs);
+
+  showLoading(`Executing uploaded tests (${runs} runs)…`);
+
+  try {
+    const res = await fetch('/upload-tests', { method: 'POST', body: formData });
+    const json = await res.json();
+    hideLoading();
+
+    if (!res.ok) throw new Error(json.message || `HTTP ${res.status}`);
+
+    $id('labResult').innerHTML = `
+      <div class="status-banner success">
+        Success: ${json.total_tests} tests executed, ${json.flaky_count} flaky detected. 
+        Batch ID: <code>${json.batch_id.slice(0,8)}</code>
+      </div>
+      <div style="margin-top: 1rem; color: var(--text-muted); font-size: 0.85rem;">
+        The results have been merged into your global dashboard and trends.
+      </div>`;
+
+    input.value = '';
+    $id('labFilePreview').style.display = 'none';
+    $id('labExecuteBtn').style.display = 'none';
+    await fetchData();
+  } catch (err) {
+    hideLoading();
+    showBanner('Upload execution failed: ' + err.message, 'error');
+    console.error(err);
+  }
+}
+
+function initLabUploadArea() {
+  const area = $id('labUploadArea');
+  const input = $id('labFile');
+  if (!area || !input) return;
+
+  area.addEventListener('dragover', e => { e.preventDefault(); area.classList.add('drag-over'); });
+  area.addEventListener('dragleave', () => area.classList.remove('drag-over'));
+  area.addEventListener('drop', e => {
+    e.preventDefault();
+    area.classList.remove('drag-over');
+    if (e.dataTransfer.files.length) {
+      input.files = e.dataTransfer.files;
+      handleLabFileSelection(input);
+    }
+  });
 }
 
 // ─── UI helpers ───────────────────────────────────────────────

@@ -15,7 +15,7 @@ services:
     ports:
       - "5000:8080"
     environment:
-      FLASK_ENV: production
+      FLASK_ENV: development
       FLASK_HOST: "0.0.0.0"
       FLASK_PORT: "8080"
       PYTHONPATH: /app/src/main

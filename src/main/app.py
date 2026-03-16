@@ -22,6 +22,7 @@ import logging
 import uuid
 from flask import Flask, jsonify, request, render_template, abort
 from flask_cors import CORS
+from pathlib import Path
 
 from flaky_detector import FlakyDetector
 from test_analyzer import TestAnalyzer
@@ -46,6 +47,7 @@ logger = logging.getLogger(__name__)
 # ---------------------------------------------------------------------------
 # App setup
 # ---------------------------------------------------------------------------
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
 app = Flask(__name__, template_folder="templates", static_folder="static")
 CORS(app)
 init_db()
@@ -114,6 +116,101 @@ def run_tests():
 
     return jsonify({
         "message": "Test run complete.",
+        "batch_id": batch_id,
+        "total_tests": len(results),
+        "flaky_count": sum(1 for r in results if r.get("is_flaky")),
+        "results": results,
+    }), 200
+
+
+@app.route("/upload-tests", methods=["POST"])
+def upload_tests():
+    """
+    Upload a Python test file and run flaky detection on it.
+    
+    Accepts multipart file upload with field name 'file'.
+    Optional form field: 'runs' (default: 3).
+    """
+    if "file" not in request.files:
+        abort(400, description="No file uploaded. Use field name 'file'.")
+    
+    file = request.files["file"]
+    if file.filename == "":
+        abort(400, description="Empty filename.")
+    
+    if not file.filename.endswith(".py"):
+        abort(400, description="Only .py files are allowed.")
+
+    runs = request.form.get("runs", 3, type=int)
+    if runs < 1 or runs > 10:
+        abort(400, description="'runs' must be between 1 and 10.")
+
+    # Save file to a secure location (absolute path)
+    upload_dir = PROJECT_ROOT / "src" / "test" / "uploads"
+    upload_dir.mkdir(parents=True, exist_ok=True)
+    
+    filename = f"upload_{uuid.uuid4().hex[:8]}_{file.filename}"
+    file_path = upload_dir / filename
+    file.save(str(file_path))
+
+    logger.info("Uploaded test file saved to %s. Running %d iterations.", file_path, runs)
+
+    # Run detection
+    previously_flaky = get_existing_flaky_names()
+    batch_id = str(uuid.uuid4())
+    
+    # Pass the absolute path to the detector
+    detector = FlakyDetector(test_path=str(file_path), runs=runs)
+    
+    try:
+        results = detector.run()
+        
+        # Normalize test names to remove the unique upload path prefix
+        # Transforms: src/test/uploads/upload_abc_tests.py::test_fn 
+        # To: tests.py::test_fn
+        for r in results:
+            original_name = r["test_name"]
+            if "::" in original_name:
+                parts = original_name.split("::")
+                file_part = os.path.basename(parts[0])
+                # Also strip the upload prefix from the filename if it matches our pattern
+                if file_part.startswith("upload_") and len(file_part) > 16:
+                    # upload_HEX(8)_... -> strip HEX(8) + underscore (total 15 chars)
+                    # Actually, our filename pattern is f"upload_{uuid.uuid4().hex[:8]}_{file.filename}"
+                    # So we split by _ and take everything after the second underscore
+                    file_parts = file_part.split("_", 2)
+                    if len(file_parts) == 3:
+                        file_part = file_parts[2]
+                r["test_name"] = f"{file_part}::{'::'.join(parts[1:])}"
+            else:
+                r["test_name"] = os.path.basename(original_name)
+
+        analyzer = TestAnalyzer()
+        for result in results:
+            result["suggested_fix"] = analyzer.suggest_fix(result.get("logs", ""), result)
+            upsert_result(result)
+            record_run_history(result["test_name"], batch_id, result, source="upload")
+
+    except Exception as exc:
+        logger.exception("Failed to execute or save uploaded tests: %s", exc)
+        if os.path.exists(file_path):
+            os.remove(file_path)
+        abort(500, description=f"Internal Server Error: {str(exc)}")
+
+    # Clean up uploaded file
+    if os.path.exists(file_path):
+        os.remove(file_path)
+
+    # Notify on newly detected flaky tests
+    new_flaky = [r for r in results
+                 if r.get("is_flaky") and r["test_name"] not in previously_flaky]
+    if new_flaky:
+        webhooks = get_webhooks()
+        notifier = WebhookNotifier(webhooks)
+        notifier.notify_new_flaky_tests(new_flaky, batch_id)
+
+    return jsonify({
+        "message": "Uploaded tests executed successfully.",
         "batch_id": batch_id,
         "total_tests": len(results),
         "flaky_count": sum(1 for r in results if r.get("is_flaky")),
